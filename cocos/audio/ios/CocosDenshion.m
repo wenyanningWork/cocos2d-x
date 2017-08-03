@@ -353,9 +353,18 @@ static BOOL _mixerRateSet = NO;
     free(defs);
 }    
 
-- (void) _lazyInitOpenAL
-{
-    if (!functioning_) {
+- (id)init
+{    
+    if ((self = [super init])) {
+        
+        //Create mutexes
+        _mutexBufferLoad = [[NSObject alloc] init];
+        
+        asynchLoadProgress_ = 0.0f;
+        
+        bufferTotal = CD_BUFFERS_START;
+        _buffers = (bufferInfo *)malloc( sizeof(_buffers[0]) * bufferTotal);
+    
         // Initialize our OpenAL environment
         if ([self _initOpenAL]) {
             //Set up the default source group - a single group that contains all the sources
@@ -370,28 +379,10 @@ static BOOL _mixerRateSet = NO;
             enabled_ = YES;
             //Test whether get gain works for sources
             [self _testGetGain];
-            CDLOG(@"OpenAL was initialized successfully!");
         } else {
             //Something went wrong with OpenAL
             functioning_ = NO;
-            CDLOG(@"OpenAL failed to be initialized!");
         }
-    }
-}
-
-- (id)init
-{    
-    if ((self = [super init])) {
-        
-        //Create mutexes
-        _mutexBufferLoad = [[NSObject alloc] init];
-        
-        asynchLoadProgress_ = 0.0f;
-        
-        bufferTotal = CD_BUFFERS_START;
-        _buffers = (bufferInfo *)malloc( sizeof(_buffers[0]) * bufferTotal);
-    
-        [self _lazyInitOpenAL];
     }
     
     return self;
@@ -514,8 +505,6 @@ static BOOL _mixerRateSet = NO;
 -(BOOL) loadBufferFromData:(int) soundId soundData:(ALvoid*) soundData format:(ALenum) format size:(ALsizei) size freq:(ALsizei) freq {
 
     @synchronized(_mutexBufferLoad) {
-        
-        [self _lazyInitOpenAL];
         
         if (!functioning_) {
             //OpenAL initialisation has previously failed
